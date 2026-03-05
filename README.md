@@ -134,6 +134,7 @@ Use `--unsafe-paths` only when you intentionally need those characters.
 ## Current Rules
 
 - `cross_join` (`warning`)
+- `reserved_word` (`warning`)
 - `unused_variable` (`warning`)
 - `implicit_global` (`warning`)
 - `nested_each` (`info`)
