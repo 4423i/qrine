@@ -18,11 +18,8 @@ class Statement:
 
 
 def _strip_comment(line: str) -> str:
-    slash_index = line.find("/")
-    if slash_index == -1:
-        return line
-    if slash_index == 0 or line[slash_index - 1].isspace():
-        return line[:slash_index]
+    if line.lstrip().startswith("/"):
+        return ""
     return line
 
 

@@ -11,7 +11,7 @@ KEYWORDS = {
 }
 
 MULTI_SYMBOLS = {"<>"}
-SINGLE_SYMBOLS = set("+-*%=,;:(){}[]")
+SINGLE_SYMBOLS = set("+-*%=,;:(){}[]/")
 
 
 @dataclass(frozen=True)
@@ -25,10 +25,12 @@ class Token:
 def _is_comment_start(text: str, index: int) -> bool:
     if text[index] != "/":
         return False
-    if index == 0:
-        return True
-    prev = text[index - 1]
-    return prev == "\n" or prev.isspace()
+    cursor = index - 1
+    while cursor >= 0 and text[cursor] != "\n":
+        if not text[cursor].isspace():
+            return False
+        cursor -= 1
+    return True
 
 
 def tokenize(text: str) -> list[Token]:

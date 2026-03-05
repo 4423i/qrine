@@ -37,9 +37,10 @@ class LintConfig:
     unsafe_paths: bool
 
 
-def _reject_control_chars(value: str, label: str) -> None:
+def _reject_control_chars(value: str, label: str, allowed_controls: set[str] | None = None) -> None:
+    allowed = allowed_controls or set()
     for char in value:
-        if ord(char) < 0x20:
+        if ord(char) < 0x20 and char not in allowed:
             raise ValueError(f"{label} contains control characters")
 
 
@@ -76,7 +77,7 @@ def _parse_fields(raw_fields: str | list[str] | None) -> list[str] | None:
 
 
 def _load_payload(raw_payload: str) -> dict[str, Any]:
-    _reject_control_chars(raw_payload, "input JSON")
+    _reject_control_chars(raw_payload, "input JSON", allowed_controls={"\n", "\r", "\t"})
     try:
         payload = json.loads(raw_payload)
     except json.JSONDecodeError as exc:
@@ -118,6 +119,16 @@ def _collect_files(paths: list[str], unsafe_paths: bool) -> tuple[list[Path], li
             continue
 
         if path.is_file():
+            if path.suffix.lower() not in TARGET_EXTENSIONS:
+                allowed = ", ".join(sorted(TARGET_EXTENSIONS))
+                errors.append(
+                    CommandError(
+                        code="unsupported_extension",
+                        message=f"file extension must be one of: {allowed}",
+                        path=raw,
+                    )
+                )
+                continue
             unique[path.resolve()] = path
             continue
 
@@ -186,7 +197,10 @@ def _emit_ndjson(
 
 
 def _merge_lint_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> LintConfig:
-    payload = _load_payload(args.input_json) if args.input_json else {}
+    try:
+        payload = _load_payload(args.input_json) if args.input_json else {}
+    except ValueError as exc:
+        parser.error(str(exc))
 
     if args.json_output:
         args.output = "json"

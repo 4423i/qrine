@@ -6,7 +6,7 @@ The current design is **agent-friendly by default**:
 
 - deterministic machine-readable output (`--output json|ndjson`)
 - raw JSON request payloads (`--input-json`)
-- runtime schema introspection (`qlint schema`)
+- runtime schema introspection (`qrine schema`)
 - defensive input validation against agent hallucinations
 - `--dry-run` planning mode
 
@@ -22,33 +22,33 @@ Agent-first CLIs optimize for predictability, introspection, and safety.
 Lint (legacy-compatible):
 
 ```bash
-./qlint trade.q
+./qrine trade.q
 ```
 
 Explicit lint command:
 
 ```bash
-./qlint lint trade.q
+./qrine lint trade.q
 ```
 
 Directory lint:
 
 ```bash
-./qlint lint src/
+./qrine lint src/
 ```
 
 Dry run (validate + plan only):
 
 ```bash
-./qlint lint src/ --dry-run
+./qrine lint src/ --dry-run
 ```
 
 Runtime schema introspection:
 
 ```bash
-./qlint schema
-./qlint schema lint.input
-./qlint schema lint.output
+./qrine schema
+./qrine schema lint.input
+./qrine schema lint.output
 ```
 
 ## Agent-Oriented Input
@@ -56,7 +56,7 @@ Runtime schema introspection:
 Raw payload input (no custom flag translation required):
 
 ```bash
-./qlint lint --input-json '{
+./qrine lint --input-json '{
   "paths": ["src"],
   "output": "json",
   "fields": ["file", "line", "severity", "message"],
@@ -148,7 +148,8 @@ Use `--unsafe-paths` only when you intentionally need those characters.
 
 ## Environment Variable
 
-- `QLINT_OUTPUT_FORMAT=text|json|ndjson`
+- `QRINE_OUTPUT_FORMAT=text|json|ndjson`
+- `QLINT_OUTPUT_FORMAT=text|json|ndjson` (legacy compatibility)
 
 ## Project Layout
 
@@ -161,12 +162,13 @@ qrine/
   diagnostics.py
   rules/
     __init__.py
+    reserved_word.py
     cross_join.py
     unused_var.py
     implicit_global.py
     nested_each.py
     value_execution.py
-qlint
+qrine
 README.md
 philosophy.md
 CONTEXT.md
