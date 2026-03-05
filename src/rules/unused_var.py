@@ -1,6 +1,19 @@
+import re
 from collections import Counter
 
 from ..diagnostics import Diagnostic
+
+
+def _is_ns_name(name: str) -> bool:
+    return name.startswith(".")
+
+
+def _ns_name_used(name: str, text: str) -> bool:
+    # Namespace-qualified names (e.g. .myns.val) are not single IDENT tokens,
+    # so token-based counting fails. Fall back to raw text search.
+    # The name appears at least once (its own definition), so >1 means it's used.
+    pattern = re.compile(re.escape(name) + r"(?![A-Za-z0-9_.])")
+    return len(pattern.findall(text)) > 1
 
 
 class UnusedVarRule:
@@ -33,7 +46,11 @@ class UnusedVarRule:
         for entry in assignments:
             name = str(entry["name"])
             line = int(entry["line"])
-            if usage.get(name, 0) == 0:
+            if _is_ns_name(name):
+                used = _ns_name_used(name, text)
+            else:
+                used = usage.get(name, 0) > 0
+            if not used:
                 diagnostics.append(
                     Diagnostic(
                         file=file_path,
