@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qrine"
+version = "0.1.0"
+description = "kdb+/q static linter — agent-friendly deterministic output"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+qrine = "qrine.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = "qrine"
