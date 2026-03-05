@@ -22,6 +22,30 @@ class Token:
     column: int
 
 
+def _strip_block_comments(text: str) -> str:
+    """Replace block comment sections with blank lines, preserving line numbers.
+
+    In q, a line containing only '/' starts a block comment;
+    a line containing only '\\' ends it.
+    """
+    lines = text.splitlines(keepends=True)
+    result = []
+    in_block = False
+    for line in lines:
+        stripped = line.rstrip("\r\n").strip()
+        if not in_block:
+            if stripped == "/":
+                in_block = True
+                result.append("\n")
+            else:
+                result.append(line)
+        else:
+            if stripped == "\\":
+                in_block = False
+            result.append("\n" if line.endswith("\n") else "")
+    return "".join(result)
+
+
 def _is_comment_start(text: str, index: int) -> bool:
     if text[index] != "/":
         return False
@@ -34,6 +58,7 @@ def _is_comment_start(text: str, index: int) -> bool:
 
 
 def tokenize(text: str) -> list[Token]:
+    text = _strip_block_comments(text)
     tokens: list[Token] = []
     i = 0
     line = 1
