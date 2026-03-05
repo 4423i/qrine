@@ -8,10 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from .engine import compute_exit_code, lint_file
+from .rules import RULES as ALL_RULES
 
 TARGET_EXTENSIONS = {".q", ".k"}
 OUTPUT_FORMATS = {"text", "json", "ndjson"}
 DIAGNOSTIC_FIELDS = ("file", "line", "column", "severity", "rule", "message")
+ALL_RULE_NAMES = frozenset(r.name for r in ALL_RULES)
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,8 @@ class LintConfig:
     max_diagnostics: int | None
     dry_run: bool
     unsafe_paths: bool
+    rules: list[str] | None
+    exclude_rules: list[str] | None
 
 
 def _reject_control_chars(value: str, label: str, allowed_controls: set[str] | None = None) -> None:
@@ -76,6 +80,22 @@ def _parse_fields(raw_fields: str | list[str] | None) -> list[str] | None:
     return normalized
 
 
+def _parse_rule_names(raw: str | list | None, label: str) -> list[str] | None:
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        names = [str(r).strip() for r in raw if str(r).strip()]
+    else:
+        names = [r.strip() for r in str(raw).split(",") if r.strip()]
+    if not names:
+        return None
+    unknown = sorted(set(names) - ALL_RULE_NAMES)
+    if unknown:
+        available = ", ".join(sorted(ALL_RULE_NAMES))
+        raise ValueError(f"unknown rule(s) in {label}: {', '.join(unknown)} (available: {available})")
+    return names
+
+
 def _load_payload(raw_payload: str) -> dict[str, Any]:
     _reject_control_chars(raw_payload, "input JSON", allowed_controls={"\n", "\r", "\t"})
     try:
@@ -86,7 +106,7 @@ def _load_payload(raw_payload: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("--input-json payload must be a JSON object")
 
-    allowed_keys = {"paths", "output", "fields", "max_diagnostics", "dry_run", "unsafe_paths"}
+    allowed_keys = {"paths", "output", "fields", "max_diagnostics", "dry_run", "unsafe_paths", "rules", "exclude_rules"}
     unknown = sorted(set(payload.keys()) - allowed_keys)
     if unknown:
         raise ValueError(f"unknown keys in --input-json: {', '.join(unknown)}")
@@ -225,6 +245,17 @@ def _merge_lint_config(args: argparse.Namespace, parser: argparse.ArgumentParser
     dry_run = bool(args.dry_run or payload.get("dry_run", False))
     unsafe_paths = bool(args.unsafe_paths or payload.get("unsafe_paths", False))
 
+    try:
+        rules = _parse_rule_names(args.rules if args.rules is not None else payload.get("rules"), "--rules")
+        exclude_rules = _parse_rule_names(
+            args.exclude_rules if args.exclude_rules is not None else payload.get("exclude_rules"), "--exclude-rules"
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    if rules is not None and exclude_rules is not None:
+        parser.error("--rules and --exclude-rules are mutually exclusive")
+
     return LintConfig(
         paths=paths,
         output=output,
@@ -232,6 +263,8 @@ def _merge_lint_config(args: argparse.Namespace, parser: argparse.ArgumentParser
         max_diagnostics=max_diagnostics,
         dry_run=dry_run,
         unsafe_paths=unsafe_paths,
+        rules=rules,
+        exclude_rules=exclude_rules,
     )
 
 
@@ -255,6 +288,15 @@ def _build_lint_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="allow path characters normally blocked for agent safety (?, #, %%)",
     )
+    parser.add_argument(
+        "--rules",
+        help="comma-separated list of rules to run (mutually exclusive with --exclude-rules)",
+    )
+    parser.add_argument(
+        "--exclude-rules",
+        dest="exclude_rules",
+        help="comma-separated list of rules to skip (mutually exclusive with --rules)",
+    )
     return parser
 
 
@@ -270,11 +312,18 @@ def _run_lint(argv: list[str]) -> int:
     files, path_errors = _collect_files(config.paths, unsafe_paths=config.unsafe_paths)
     errors.extend(path_errors)
 
+    if config.rules is not None:
+        active_rules = [r for r in ALL_RULES if r.name in set(config.rules)]
+    elif config.exclude_rules is not None:
+        active_rules = [r for r in ALL_RULES if r.name not in set(config.exclude_rules)]
+    else:
+        active_rules = None  # engine uses its own default
+
     diagnostics = []
     if not config.dry_run:
         for path in files:
             try:
-                diagnostics.extend(lint_file(path))
+                diagnostics.extend(lint_file(path, rules=active_rules))
             except OSError as exc:
                 errors.append(CommandError(code="read_failed", message=str(exc), path=str(path)))
 
@@ -340,6 +389,8 @@ def _schema_document() -> dict[str, object]:
                     "max_diagnostics": "integer >= 0",
                     "dry_run": "boolean",
                     "unsafe_paths": "boolean",
+                    "rules": sorted(ALL_RULE_NAMES),
+                    "exclude_rules": sorted(ALL_RULE_NAMES),
                 },
                 "output": {
                     "diagnostic": {
