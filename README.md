@@ -133,12 +133,33 @@ Use `--unsafe-paths` only when you intentionally need those characters.
 
 ## Current Rules
 
-- `cross_join` (`warning`)
-- `reserved_word` (`warning`)
-- `unused_variable` (`warning`)
-- `implicit_global` (`warning`)
-- `nested_each` (`info`)
-- `value_execution` (`info`)
+### Error
+- `exit_in_function` — `exit` inside a function terminates the whole process
+
+### Warning
+- `cross_join` — possible cross join (multiple tables without join condition)
+- `reserved_word` — variable/parameter name conflicts with q built-in
+- `unused_variable` — assigned variable never read
+- `implicit_global` — function references global variable without explicit assignment
+- `null_comparison` — `= 0N` / `= 0n` etc. should be `null x`
+- `global_amend_in_function` — global mutation via `::` inside a function
+- `delete_without_where` — `delete from table` without `where` deletes all rows
+- `update_without_where` — `update from table` without `where` modifies all rows
+- `protected_namespace` — assignment to `.q.*` overrides a q built-in function
+- `peach_shared_state` — `peach` combined with global mutation `::` (race condition)
+- `debug_print` — `show` or `0N!` debug output left in code
+- `system_call` — `system` call (side effects / audit concern)
+
+### Info
+- `nested_each` — nested `each` (potential performance concern)
+- `value_execution` — dynamic evaluation via `value`
+- `reval_usage` — dynamic evaluation via `reval`
+- `hopen_not_closed` — `hopen` return value not assigned (possible handle leak)
+- `hopen_string_arg` — `hopen` with string argument; prefer symbol (`:host:port)
+- `shadow_global` — function parameter shadows a global name
+- `overlong_line` — line exceeds 120 characters
+- `function_many_params` — function has more than 5 parameters
+- `select_without_from` — `select`/`exec` without `from` clause
 
 ## Exit Codes
 
