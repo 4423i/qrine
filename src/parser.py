@@ -56,7 +56,17 @@ def _logical_lines(text: str) -> list[tuple[int, str]]:
     start: int | None = None
     depth = 0
 
+    in_block = False
     for lineno, raw_line in enumerate(text.splitlines(), start=1):
+        stripped_raw = raw_line.strip()
+        if not in_block:
+            if stripped_raw == "/":
+                in_block = True
+                continue
+        else:
+            if stripped_raw == "\\":
+                in_block = False
+            continue
         line = _strip_comment(raw_line).strip()
         if not line:
             continue

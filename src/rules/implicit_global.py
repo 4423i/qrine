@@ -18,7 +18,7 @@ class ImplicitGlobalRule:
         diagnostics: list[Diagnostic] = []
         for fn in structure.get("functions", []):
             params = [p for p in fn.get("params", []) if p]
-            allowed = set(params) if params else {"x", "y"}
+            allowed = set(params) if params else {"x", "y", "z"}
             body = str(fn.get("body", ""))
 
             local_names = set(LOCAL_ASSIGN_RE.findall(body))
