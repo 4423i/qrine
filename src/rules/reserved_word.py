@@ -182,6 +182,14 @@ RESERVED_WORDS = {
 }
 
 
+def _is_identifier_text(value: str) -> bool:
+    if not value:
+        return False
+    if not (value[0].isalpha() or value[0] == "_"):
+        return False
+    return all(ch.isalnum() or ch == "_" for ch in value)
+
+
 class ReservedWordRule:
     name = "reserved_word"
     severity = "warning"
@@ -191,7 +199,7 @@ class ReservedWordRule:
 
         for i, token in enumerate(tokens[:-1]):
             nxt = tokens[i + 1]
-            if token.kind != "IDENT":
+            if not _is_identifier_text(token.value):
                 continue
             if nxt.kind != "SYMBOL" or nxt.value != ":" or token.line != nxt.line:
                 continue
@@ -208,5 +216,23 @@ class ReservedWordRule:
                     message=f"identifier '{token.value}' conflicts with q reserved keyword",
                 )
             )
+
+        for fn in structure.get("functions", []):
+            line = int(fn.get("line", 1))
+            for param in fn.get("params", []):
+                if not isinstance(param, str):
+                    continue
+                if param.lower() not in RESERVED_WORDS:
+                    continue
+                diagnostics.append(
+                    Diagnostic(
+                        file=file_path,
+                        line=line,
+                        column=1,
+                        severity=self.severity,
+                        rule=self.name,
+                        message=f"parameter '{param}' conflicts with q reserved keyword",
+                    )
+                )
 
         return diagnostics
